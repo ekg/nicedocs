@@ -1,0 +1,116 @@
+#!/bin/bash
+
+# nicetypst - convert Markdown to PDF via Typst with nice typography
+#
+# Usage: nicetypst [--font FONT] [--size SIZE] FILE.md
+#
+# Available fonts (serif):
+#   "New Computer Modern"   - classic Computer Modern look
+#   "Libertinus Serif"      - elegant old-style serif (fork of Linux Libertine)
+#   "Linux Libertine"       - elegant old-style serif
+#   "TeX Gyre Termes"       - Times-style serif
+#   "TeX Gyre Pagella"      - Palatino-style serif
+#
+# Available fonts (sans-serif):
+#   "Inter"                 - modern, highly legible, great for body text ★
+#   "Noto Sans"             - Google's universal font, huge language coverage
+#   "TeX Gyre Heros"        - Helvetica metric-compatible
+#   "Liberation Sans"       - Arial metric-compatible
+#   "Nimbus Sans"           - Helvetica clone
+#   "Open Sans"             - friendly, clean sans-serif
+#   "Lato"                  - warm, stable sans-serif
+#   "Roboto"                - Google's Android font, clean and modern
+#
+# Available fonts (monospace):
+#   "Noto Sans Mono"
+#   "Liberation Mono"
+
+DEFAULT_FONT="Inter"
+DEFAULT_SIZE="11pt"
+
+show_help() {
+  echo "nicetypst - convert Markdown to PDF via Typst with nice typography"
+  echo ""
+  echo "Usage: nicetypst [OPTIONS] FILE.md"
+  echo ""
+  echo "Options:"
+  echo "  --font FONT   Set the body font (default: \"$DEFAULT_FONT\")"
+  echo "  --size SIZE    Set the font size (default: $DEFAULT_SIZE)"
+  echo "  --fonts        List available fonts from Typst"
+  echo "  --help         Show this help message"
+  echo ""
+  echo "Recommended:"
+  echo "  \"Inter\"                  modern, highly legible (default) ★"
+  echo "  \"New Computer Modern\"    classic Computer Modern, traditional LaTeX look"
+  echo "  \"Libertinus Serif\"       elegant old-style serif"
+  echo "  \"Noto Sans\"              universal, huge language coverage"
+  echo "  \"Lato\"                   warm, stable sans-serif"
+  echo ""
+  echo "More serif fonts:"
+  echo "  \"Linux Libertine\"        elegant old-style serif"
+  echo "  \"TeX Gyre Termes\"        Times-style"
+  echo "  \"TeX Gyre Pagella\"       Palatino-style"
+  echo ""
+  echo "More sans-serif fonts:"
+  echo "  \"TeX Gyre Heros\"         Helvetica metric-compatible"
+  echo "  \"Liberation Sans\"        Arial metric-compatible"
+  echo "  \"Nimbus Sans\"            Helvetica clone"
+  echo "  \"Open Sans\"              friendly, clean"
+  echo "  \"Roboto\"                 clean and modern"
+  echo ""
+  echo "Examples:"
+  echo "  nicetypst paper.md"
+  echo "  nicetypst --font \"New Computer Modern\" paper.md"
+  echo "  nicetypst --font \"Libertinus Serif\" --size 12pt paper.md"
+}
+
+font="$DEFAULT_FONT"
+size="$DEFAULT_SIZE"
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --help|-h)
+      show_help
+      exit 0
+      ;;
+    --fonts)
+      typst fonts
+      exit 0
+      ;;
+    --font)
+      font="$2"
+      shift 2
+      ;;
+    --size)
+      size="$2"
+      shift 2
+      ;;
+    -*)
+      echo "Unknown option: $1" >&2
+      echo "Run 'nicetypst --help' for usage." >&2
+      exit 1
+      ;;
+    *)
+      input="$1"
+      shift
+      ;;
+  esac
+done
+
+if [[ -z "$input" ]]; then
+  echo "Error: no input file specified." >&2
+  echo "Run 'nicetypst --help' for usage." >&2
+  exit 1
+fi
+
+typfile="${input%.md}.typ"
+pdffile="${input%.md}.pdf"
+
+pandoc "$input" -o "$typfile" \
+  && sed -i "1i #set text(font: \"$font\", size: $size)\n#set par(justify: true)" "$typfile" \
+  && sed -i 's/#horizontalrule/#line(length: 100%, stroke: 0.5pt + luma(180))/g' "$typfile" \
+  && sed -i 's/#blockquote\[/#quote(block: true)\[/g' "$typfile" \
+  && sed -i '/#cite(/d' "$typfile" \
+  && typst compile "$typfile" \
+  && rm "$typfile" \
+  && open "$pdffile"
